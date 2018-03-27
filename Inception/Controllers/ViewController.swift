@@ -9,7 +9,7 @@
 import UIKit
 import CoreML
 import Vision
-//import SVProgressHUD
+import SVProgressHUD
 
 class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     
@@ -27,24 +27,28 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.black
+        navigationController?.navigationBar.tintColor = UIColor.orange
+        navigationController?.navigationBar.isTranslucent = false
         observScoreLabel.isHidden = true
         observIdLabel.isHidden = true
     }
 
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : Any]) {
+        observScoreLabel.isHidden = true
+        observIdLabel.isHidden = true
+        SVProgressHUD.show()
         var uiimage = UIImage()
         if let editedImage = info[UIImagePickerControllerEditedImage] as? UIImage {
             uiimage = editedImage
         } else if let originalImage = info[UIImagePickerControllerOriginalImage] as? UIImage {
             uiimage = originalImage
         }
-        
         inputImage.image = uiimage
+        dismiss(animated: true, completion: nil)
 
         if let ciimage = CIImage(image: uiimage) {
             classify(image: ciimage)
         }
-        dismiss(animated: true, completion: nil)
     }
     
     func classify(image: CIImage) {
@@ -56,10 +60,12 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
             }
             guard let results = request.results as? [VNClassificationObservation] else { fatalError("Cannot get results from CoreML model") }
             if let firstResult = results.first {
-                self.observIdLabel.text = firstResult.identifier
-                self.observScoreLabel.text = String(firstResult.confidence)
-                self.observScoreLabel.isHidden = false
-                self.observIdLabel.isHidden = false
+                DispatchQueue.main.async(execute: {() -> Void in
+                    self.observIdLabel.text = firstResult.identifier
+                    self.observScoreLabel.text = String(firstResult.confidence)
+                    self.observScoreLabel.isHidden = false
+                    self.observIdLabel.isHidden = false
+                })
             }
         }
         
@@ -70,6 +76,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         } catch {
             print(error)
         }
+        SVProgressHUD.dismiss()
     }
     
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
@@ -77,13 +84,17 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     }
     
     @IBAction func photoLibraryButton(_ sender: UIBarButtonItem) {
-        imgPicker.sourceType = .photoLibrary
-        present(imgPicker, animated: true, completion: nil)
+        if UIImagePickerController.isSourceTypeAvailable(.savedPhotosAlbum) {
+            imgPicker.sourceType = .savedPhotosAlbum
+            present(imgPicker, animated: true, completion: nil)
+        }
     }
     
     @IBAction func cameraButtonPressed(_ sender: UIBarButtonItem) {
-        imgPicker.sourceType = .camera
-        present(imgPicker, animated: true, completion: nil)
+        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+            imgPicker.sourceType = .camera
+            present(imgPicker, animated: true, completion: nil)
+        }
     }
 }
 
